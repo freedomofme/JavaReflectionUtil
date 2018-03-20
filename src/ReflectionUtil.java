@@ -2,21 +2,17 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public class ReflectionUtil {
-    public static void main(String[] args) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException, NoSuchFieldException {
-        ReflectTest test = new ReflectTest();
 
-        try {
-            System.out.println(getField(test, "count"));
-            System.out.println(invokeMethod(test, "addCount", typeOf(Integer.valueOf(7))));
-            System.out.println(invokeMethod(test, "addCount", typeOf(7)));
-            System.out.println(getField(test, "count"));
-            System.out.println(invokeMethod(test, "addCount"));
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
+class ReflectionWrapper{
+    Object obj;
+    Class cls;
+    public ReflectionWrapper(Class cls, Object obj) {
+        this.cls = cls;
+        this.obj = obj;
     }
+}
 
+public class ReflectionUtil {
     // 获得指定变量的值
     public static Object getField(Object instance, String fieldName)
             throws IllegalAccessException, NoSuchFieldException {
@@ -50,9 +46,8 @@ public class ReflectionUtil {
 
     private static Method getMethod(Class<?> thisClass, String methodName, Class[] classTypes)
             throws NoSuchMethodException {
-
         if (thisClass == null) {
-            throw new NoSuchMethodException("Error method !");
+            throw new NoSuchMethodException("Cannot find the corresponding method, check the input parameters");
         }
         try {
             return thisClass.getDeclaredMethod(methodName, classTypes);
@@ -61,6 +56,8 @@ public class ReflectionUtil {
         }
     }
 
+
+//    public static
 
     //调用含null
     public static Object invokeMethod(Object instance, String methodName)
@@ -94,6 +91,24 @@ public class ReflectionUtil {
         return getMethod(instance, methodName, new Class[]{int.class}).invoke(instance, args);
     }
 
+    // 使用typeOf封装, 初始化构造函数为单个参数的对象
+    public static Object newInstance(Class<?> cls, ReflectionWrapper arg) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        ReflectionWrapper[] args = new ReflectionWrapper[1];
+        args[0] = arg;
+        return newInstance(cls, args);
+    }
+
+    // 使用typeOf封装, 初始化构造函数为多个参数的对象
+    public static Object newInstance(Class<?> cls, ReflectionWrapper[] args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        Class[] classTypes = null;
+        Object[] realObjects = null;
+        if (args != null) {
+            classTypes = new Class[args.length];
+            realObjects = new Object[args.length];
+            fillReflectionWrapper(classTypes, realObjects, args);
+        }
+        return cls.getConstructor(classTypes).newInstance(realObjects);
+    }
 
     // 使用typeOf封装, 调用含单个参数的方法
     public static Object invokeMethod(Object instance, String methodName, ReflectionWrapper arg)
@@ -113,25 +128,21 @@ public class ReflectionUtil {
         if (args != null) {
             classTypes = new Class[args.length];
             realObjects = new Object[args.length];
-            for (int i = 0; i < args.length; i++) {
-                if (args[i] != null) {
-                    classTypes[i] = args[i].cls;
-                    realObjects[i] = args[i].obj;
-                }
-            }
+            fillReflectionWrapper(classTypes, realObjects, args);
         }
         return getMethod(instance, methodName, classTypes).invoke(instance, realObjects);
     }
 
-
-    static class ReflectionWrapper{
-        Object obj;
-        Class cls;
-        public ReflectionWrapper(Class cls, Object obj) {
-            this.cls = cls;
-            this.obj = obj;
+    // 将ReflectionWrapper中的参数分别拆分开，填充了Class数组和Object数据
+    private static void fillReflectionWrapper(Class[] classTypes, Object[] realObjects, ReflectionWrapper[] args) {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i] != null) {
+                classTypes[i] = args[i].cls;
+                realObjects[i] = args[i].obj;
+            }
         }
     }
+
 
 
     public static ReflectionWrapper typeOf(Integer obj) {
@@ -206,34 +217,19 @@ public class ReflectionUtil {
         return new ReflectionWrapper(obj.getClass(), obj);
     }
 
+//    public static ReflectionWrapper[] typeOf(Object[] objs) {
+//        ReflectionWrapper[] wrappers = new ReflectionWrapper[objs.length];
+//        Class cls = objs.getClass();
+//        for (int i = 0; i < objs.length; i++) {
+//           wrappers[i] = new ReflectionWrapper(cls, objs);
+//        }
+//        return wrappers;
+//    }
+
 }
 
-class ReflectTest {
-    private int count;
-    private int addCount(int adder) {
-        return count += adder;
-    }
 
-    private int addCount(Integer adder) {
-        return 100;
-    }
 
-    private int addCount() {
-        return -100;
-    }
-
-    private int getCount() {
-        return count;
-    }
-
-    public int te(int a) {
-        return a;
-    }
-
-    public int te(Integer a) {
-        return 100;
-    }
-}
 
 
 
